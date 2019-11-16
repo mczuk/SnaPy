@@ -29,9 +29,6 @@ def test_initialize_from_empty_lsh():
     assert lsh.permutations is None
     lsh.update(minhash, labels)
     assert list(lsh._i_bucket) == labels
-    buckets = lsh._buckets
-    assert buckets[4466445138223010106] == [1, 8]
-    assert buckets[-3939654010681976230] == [1, 4, 8]
     assert lsh.permutations == 100
     assert lsh.no_of_bands == 50
 
