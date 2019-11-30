@@ -213,8 +213,5 @@ Number of permutations used to create minhash signatures used in LSH model.<br><
 ## Contributing
 Contributions are very welcome, message us or just submit a pull request!
 
-## Authors
-Justin Boylan-Toomey
-
 ## License
 MIT License
