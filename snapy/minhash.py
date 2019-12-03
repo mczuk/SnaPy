@@ -70,11 +70,11 @@ class MinHash:
             np.random.seed(seed)
         if method == 'multi_hash':
             self._hash_seeds = np.random.randint(
-                low=1, high=100_000_000, size=permutations
+                low=1, high=100000000, size=permutations
             )
         else:
             self._hash_seeds = np.random.randint(
-                low=1, high=100_000_000
+                low=1, high=100000000
             )
         # Run methods.
         self._shingles = self._k_shingles(text)
