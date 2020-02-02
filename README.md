@@ -211,7 +211,9 @@ Number of bands used in LSH model.<br><br>
 Number of permutations used to create minhash signatures used in LSH model.<br><br>
 
 ## Contributing
-Contributions are very welcome, message us or just submit a pull request!
+Contributions are very welcome, message us or just submit a pull request!<br>
+
+Maintainer: Justin Boylan-Toomey
 
 ## License
 MIT License
