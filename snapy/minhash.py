@@ -133,10 +133,10 @@ class MinHash:
             )
 
         # Run methods.
-        self._shingles = self._k_shingles(text)
+        self._shingles = self._k_shingles(text, method is 'multi_hash')
         self.signatures = self._min_hash()
 
-    def _k_shingles(self, texts):
+    def _k_shingles(self, texts, packed=False):
         """ Generates shingles for each input text.
 
         Breaks strings into k overlapping shingles consisting of characters or terms
@@ -168,7 +168,10 @@ class MinHash:
                 raise ValueError(
                     'Shingle "n_gram" size must not exceed minimum text length.'
                 )
-            yield shingles, self._hash_seeds, self.hash_bits
+            if packed:
+                yield shingles, self._hash_seeds, self.hash_bits
+            else:
+                yield shingles
 
     def _k_smallest_hash(self, document):
         """ Generates a texts minhash signature using k smallest neighbours method.
