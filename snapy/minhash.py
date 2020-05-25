@@ -4,6 +4,54 @@
 import numpy as np
 import mmh3
 import heapq
+import logging
+import sys
+from multiprocessing import Pool
+
+
+def thread_multi_hash_packed(args):
+    return thread_multi_hash(*args)
+
+
+def thread_multi_hash(document, hash_seeds, hash_bits):
+    """ Generates a texts minhash signature using multi-hash method.
+
+    Uses i random hashes for j permutations selecting the minimum hash value
+    each time to build each texts hash signature.
+
+    Slower but more stable than k smallest hash method.
+
+    Args:
+        document (list): List of document shingles.
+        hash_seeds (list):
+        hash_bits (list):
+
+    Returns:
+        list: List of text signatures generated using k smallest neighbours method.
+
+    """
+    signature = []
+    for seed in np.nditer(hash_seeds):
+        _min_value = None
+        for shingle in document:
+            if hash_bits == 64:
+                hash_value = mmh3.hash64(
+                    shingle, int(seed)
+                )[0]
+            elif hash_bits == 32:
+                hash_value = mmh3.hash(
+                    shingle, int(seed)
+                )
+            else:
+                hash_value = mmh3.hash128(
+                    shingle, int(seed)
+                )
+            if not _min_value:
+                _min_value = hash_value
+            elif _min_value > hash_value:
+                _min_value = hash_value
+        signature.append(_min_value)
+    return signature
 
 
 class MinHash:
@@ -29,7 +77,8 @@ class MinHash:
             permutations=100,
             hash_bits=64,
             method='multi_hash',
-            seed=None
+            seed=None,
+            n_jobs=1
     ):
         """ Generates a minhash signature matrix for texts in a corpus.
 
@@ -44,6 +93,12 @@ class MinHash:
             seed (int): Seeds from which to generate random hash function.
 
         """
+        logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                            datefmt='%m/%d/%Y %H:%M:%S',
+                            level=logging.INFO)
+        logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+        self.logger = logging.getLogger(__name__)
+        self.n_jobs = n_jobs
         self.n_gram = n_gram
         if n_gram_type not in ['char', 'term']:
             raise ValueError(
@@ -70,12 +125,13 @@ class MinHash:
             np.random.seed(seed)
         if method == 'multi_hash':
             self._hash_seeds = np.random.randint(
-                low=1, high=100000000, size=permutations
+                low=1, high=100_000_000, size=permutations
             )
         else:
             self._hash_seeds = np.random.randint(
-                low=1, high=100000000
+                low=1, high=100_000_000
             )
+
         # Run methods.
         self._shingles = self._k_shingles(text)
         self.signatures = self._min_hash()
@@ -112,45 +168,7 @@ class MinHash:
                 raise ValueError(
                     'Shingle "n_gram" size must not exceed minimum text length.'
                 )
-            yield shingles
-
-    def _multi_hash(self, document):
-        """ Generates a texts minhash signature using multi-hash method.
-
-        Uses i random hashes for j permutations selecting the minimum hash value
-        each time to build each texts hash signature.
-
-        Slower but more stable than k smallest hash method.
-
-        Args:
-            document (list): List of document shingles.
-
-        Returns:
-            list: List of text signatures generated using k smallest neighbours method.
-
-        """
-        signature = []
-        for seed in np.nditer(self._hash_seeds):
-            self._min_value = None
-            for shingle in document:
-                if self.hash_bits == 64:
-                    hash_value = mmh3.hash64(
-                        shingle, int(seed)
-                    )[0]
-                elif self.hash_bits == 32:
-                    hash_value = mmh3.hash(
-                        shingle, int(seed)
-                    )
-                else:
-                    hash_value = mmh3.hash128(
-                        shingle, int(seed)
-                    )
-                if not self._min_value:
-                    self._min_value = hash_value
-                elif self._min_value > hash_value:
-                    self._min_value = hash_value
-            signature.append(self._min_value)
-        return signature
+            yield shingles, self._hash_seeds, self.hash_bits
 
     def _k_smallest_hash(self, document):
         """ Generates a texts minhash signature using k smallest neighbours method.
@@ -198,12 +216,13 @@ class MinHash:
                 signature with n representing each permutations minimum hash value.
 
         """
-        signatures = []
-        for document in self._shingles:
-            if self.method == 'multi_hash':
-                signature = self._multi_hash(document)
-                signatures.append(signature)
-            elif self.method == 'k_smallest_values':
+        if self.method is 'multi_hash':
+            pool = Pool(self.n_jobs)
+            signatures = pool.map(thread_multi_hash_packed, self._shingles)
+            return np.array(signatures)
+        else:
+            signatures = []
+            for document in self._shingles:
                 signature = self._k_smallest_hash(document)
                 signatures.append(signature)
-        return np.array(signatures)
+            return np.array(signatures)
